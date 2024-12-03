@@ -1,0 +1,1 @@
+(Totally not overkill) script to update my [Doom Charts](https://doomcharts.com/) Spotify playlist every month
