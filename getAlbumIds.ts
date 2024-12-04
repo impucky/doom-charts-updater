@@ -16,11 +16,10 @@ async function getAlbumId(
   query: string,
   token: string
 ): Promise<{ id: string | null; log: string }> {
-  // Building URL
   const url = `https://api.spotify.com/v1/search/`;
   const params = new URLSearchParams({
     q: query,
-    limit: "5",
+    limit: "50",
     type: "album",
     market: "US",
   });
@@ -30,7 +29,6 @@ async function getAlbumId(
     "Content-Type": "application/json",
   });
 
-  // Fetch
   try {
     const res = await fetch(`${url}?${params.toString()}`, {
       method: "GET",
@@ -63,9 +61,9 @@ async function getAlbumId(
 
     const distanceStr =
       distance === 100
-        ? chalk.yellow(`${distance}%`)
-        : distance > 80
         ? chalk.green(`${distance}%`)
+        : distance > 75
+        ? chalk.yellow(`${distance}%`)
         : chalk.red(`${distance}%`);
 
     const log = `${chalk.green(query)} - ${chalk.blue(

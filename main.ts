@@ -1,10 +1,17 @@
 import "jsr:@std/dotenv/load";
 import scrapeAlbums from "./scrapeAlbums.ts";
-import { getClientAuth } from "./spotifyAuth.ts";
+import getClientAuth from "./clientAuth.ts";
+import getUserAuth from "./userAuth.ts";
 import getAlbumIds from "./getAlbumIds.ts";
+import getAllTracks from "./getAlbumTracks.ts";
+import clearPlaylist from "./clearPlaylist.ts";
+import addTracks from "./addTracks.ts";
+import updateDetails from "./updateDetails.ts";
+import updateCover from "./updateCover.ts";
 import chalk from "npm:chalk";
 
 const doomChartsUrl: string = Deno.args[0];
+const playlistId = "6zVF0xeVebktWpbW0wI6JL";
 
 const SPOTIFY_ID = Deno.env.get("SPOTIFY_ID");
 const SPOTIFY_SECRET = Deno.env.get("SPOTIFY_SECRET");
@@ -35,7 +42,7 @@ if (!albumIds) exit("Couldn't retrieve album ids");
 
 // Filter bad matches
 const excludePrompt = await prompt(
-  chalk.magenta("Choose matches to exclude: (comma separated)")
+  chalk.magenta("Choose matches to exclude: (comma separated #)")
 );
 if (excludePrompt) {
   // Parse prompt
@@ -53,10 +60,21 @@ if (excludePrompt) {
   albumIds = albumIds.filter((_, i) => !toExclude.includes(i + 1));
 }
 
-/** Todo next:
- * - Grab tracks for every album
- * - Spotify account auth
- * - Get all tracks in playlist
- * - Delete tracks
- * - Add new tracks
- * */
+// Get all tracks
+const trackUris = await getAllTracks(albumIds, clientToken);
+if (!trackUris) exit("Couldn't get the album tracks");
+
+// Login
+const userTokens = await getUserAuth(SPOTIFY_ID, SPOTIFY_SECRET);
+if (!userTokens) exit("Failed to get user tokens.");
+
+const { accessToken } = userTokens;
+
+await confirm(chalk.red(`Proceed with nuking playlist ${playlistId} ?`));
+
+await clearPlaylist(playlistId, accessToken);
+await addTracks(playlistId, accessToken, trackUris);
+await updateDetails(playlistId, accessToken, descriptionString);
+await updateCover(playlistId, accessToken, albumIds.at(-1) as string);
+
+console.log(chalk.green("All done 🤘"));

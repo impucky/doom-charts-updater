@@ -17,6 +17,7 @@ export default async function scrapeAlbums(
     const $ = cheerio.load(html);
 
     // Black magic
+    // ...Sometimes defeated by edge cases
     const content = $(".entry-content").text();
     const pattern = /^\d{1,2}\. ([^–]+ – [^\/]+)/;
     const albums = content

@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import chalk from "npm:chalk";
 
-export async function getClientAuth(
+export default async function getClientAuth(
   id: string,
   secret: string
 ): Promise<string | null> {
