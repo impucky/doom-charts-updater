@@ -27,8 +27,8 @@ if (!SPOTIFY_ID || !SPOTIFY_SECRET)
   exit("Spotify client ID or secret is missing.");
 
 // Get names
-const albumNames = await scrapeAlbums(doomChartsUrl);
-if (!albumNames) exit("Failed to get the album names.");
+const albumTitles = await scrapeAlbums(doomChartsUrl);
+if (!albumTitles) exit("Failed to get the album names.");
 
 await confirm(chalk.magenta("Proceed with these albums?"));
 
@@ -37,31 +37,33 @@ const clientToken = await getClientAuth(SPOTIFY_ID, SPOTIFY_SECRET);
 if (!clientToken) exit("Failed to get a client token.");
 
 // Get Ids
-let albumIds = await getAlbumIds(albumNames, clientToken);
-if (!albumIds) exit("Couldn't retrieve album ids");
+let albumResults = await getAlbumIds(albumTitles, clientToken);
+if (!albumResults) exit("Couldn't retrieve album ids");
 
 // Filter bad matches
 const excludePrompt = await prompt(
   chalk.magenta("Choose matches to exclude: (comma separated #)")
 );
+
 if (excludePrompt) {
-  // Parse prompt
+  // Parse input positions
   const toExclude: number[] = excludePrompt.split(",").map(Number);
   // Format description to "Missing: #1 ... | #2..."
   descriptionString = `Missing: ${toExclude
-    .map(
-      (excludeIndex, index) =>
-        `#${excludeIndex} ${albumNames[excludeIndex - 1]} ${
-          index === toExclude.length - 1 ? "" : "| "
-        }`
-    )
+    .map((pos, index) => {
+      const title = albumTitles.filter((album) => album.pos === pos)[0].title;
+      return `#${pos} ${title} ${index === toExclude.length - 1 ? "" : "| "}`;
+    })
     .join("")}`;
-  // Filter ids
-  albumIds = albumIds.filter((_, i) => !toExclude.includes(i + 1));
+  // Filter albums
+  albumResults = albumResults.filter((a) => !toExclude.includes(a.pos));
 }
 
 // Get all tracks
-const trackUris = await getAllTracks(albumIds, clientToken);
+const trackUris = await getAllTracks(
+  albumResults.map((a) => a.id),
+  clientToken
+);
 if (!trackUris) exit("Couldn't get the album tracks");
 
 // Login
@@ -75,6 +77,10 @@ await confirm(chalk.red(`Proceed with nuking playlist ${playlistId} ?`));
 await clearPlaylist(playlistId, accessToken);
 await addTracks(playlistId, accessToken, trackUris);
 await updateDetails(playlistId, accessToken, descriptionString);
-await updateCover(playlistId, accessToken, albumIds.at(-1) as string);
+await updateCover(
+  playlistId,
+  accessToken,
+  albumResults[albumResults.length - 1].id as string
+);
 
 console.log(chalk.green("All done 🤘"));

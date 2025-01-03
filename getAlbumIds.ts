@@ -8,14 +8,21 @@ type AlbumResponse = {
 };
 
 type Album = {
-  name: string;
+  pos: number;
+  title: string;
+};
+
+type AlbumMatch = {
+  pos: number;
+  title: string;
   id: string;
+  log: string;
 };
 
 async function getAlbumId(
   query: string,
   token: string
-): Promise<{ id: string | null; log: string }> {
+): Promise<{ id: string; log: string } | null> {
   const url = `https://api.spotify.com/v1/search/`;
   const params = new URLSearchParams({
     q: query,
@@ -24,8 +31,8 @@ async function getAlbumId(
     market: "US",
   });
   const headers = new Headers({
-    Authorization: `Bearer ${token}`,
-    Accept: "application/json",
+    "Authorization": `Bearer ${token}`,
+    "Accept": "application/json",
     "Content-Type": "application/json",
   });
 
@@ -37,38 +44,40 @@ async function getAlbumId(
 
     if (!res.ok) {
       console.error(`Error: ${res.status} - ${res.statusText}`);
-      return { id: null, log: `Error getting ${query}` };
+      return null;
     }
 
     const data = await res.json();
 
-    const albums = data.albums.items.map((album: AlbumResponse): Album => {
-      return {
-        name:
-          album.artists[0].name.toUpperCase() +
-          " – " +
-          album.name.toUpperCase(),
-        id: album.id,
-      };
-    });
+    const albums: { title: string; id: string }[] = data.albums.items.map(
+      (album: AlbumResponse) => {
+        return {
+          title:
+            album.artists[0].name.toUpperCase() +
+            " – " +
+            album.name.toUpperCase(),
+          id: album.id,
+        };
+      }
+    );
 
-    const match: Album = findBestMatch(albums, query);
+    const match = findBestMatch(albums, query);
 
     // Fancy log
     const distance = Math.round(
-      cmpstr.diceCoefficient(query, match.name) * 100
+      cmpstr.diceCoefficient(query, match.title) * 100
     );
 
     const distanceStr =
       distance === 100
         ? chalk.green(`${distance}%`)
-        : distance > 75
+        : distance > 80
         ? chalk.yellow(`${distance}%`)
         : chalk.red(`${distance}%`);
 
-    const log = `${chalk.green(query)} - ${chalk.blue(
-      match.name
-    )} (${distanceStr})`;
+    const log = `(${distanceStr}) ${chalk.green(query)} - ${chalk.blue(
+      match.title
+    )}`;
     // End fancy log
 
     return {
@@ -82,33 +91,40 @@ async function getAlbumId(
 }
 
 export default async function getAlbumIds(
-  albums: string[],
+  albums: Album[],
   token: string
-): Promise<string[] | null> {
-  // Pass index to keep the albums in order
-  const promises = albums.map((name, index) =>
-    getAlbumId(name, token).then(({ id, log }) => ({
-      id,
-      log,
-      index,
-    }))
-  );
+): Promise<AlbumMatch[] | null> {
+  const promises = albums.map((album) => {
+    return getAlbumId(album.title, token).then((response) => {
+      if (!response) return null;
+      return {
+        pos: album.pos,
+        title: album.title,
+        id: response.id,
+        log: response.log,
+      };
+    });
+  });
 
   const results = await Promise.all(promises);
+  const filteredResults = results.filter(
+    (result): result is AlbumMatch => result !== null
+  );
 
-  results.sort((a, b) => a.index - b.index);
-  results.forEach(({ index, log }) => console.log(`${index + 1}: ${log}`));
+  filteredResults.forEach(({ pos, log }) =>
+    console.log(`#${pos}: ${pos < 10 ? " " : ""}${log}`)
+  );
 
-  return results.map(({ id }) => id).filter((id) => id !== null);
+  return filteredResults.sort((a, b) => b.pos - a.pos);
 }
 
 function findBestMatch(
-  albums: Album[],
+  albums: { title: string; id: string }[],
   query: string
-): { name: string; id: string } {
+): { title: string; id: string } {
   const bestMatch = cmpstr.diceClosest(
     query,
-    albums.map(({ name }: { name: string }) => name)
+    albums.map((album) => album.title)
   );
-  return albums.filter(({ name }: { name: string }) => name === bestMatch)[0];
+  return albums.filter((album) => album.title === bestMatch)[0];
 }

@@ -1,9 +1,14 @@
 import * as cheerio from "npm:cheerio";
 import chalk from "npm:chalk";
 
+type Album = {
+  pos: number;
+  title: string;
+};
+
 export default async function scrapeAlbums(
   url: string
-): Promise<string[] | null> {
+): Promise<Album[] | null> {
   console.log("Getting the album names from Doom Charts...");
   try {
     const res = await fetch(url);
@@ -17,20 +22,21 @@ export default async function scrapeAlbums(
     const $ = cheerio.load(html);
 
     // Black magic
-    // ...Sometimes defeated by edge cases
     const content = $(".entry-content").text();
-    const pattern = /^\d{1,2}\. ([^–]+ – [^\/]+)/;
+    const pattern = /(^\d{1,2}\.) ([^–]+ – [^\/]+)/;
     const albums = content
       .split("\n")
       .map((line) => {
         const match = line.match(pattern);
-        return match ? match[1].trim() : null;
+        return match
+          ? { pos: parseInt(match[1]), title: match[2].trim() }
+          : null;
       })
-      .filter(Boolean) as string[];
+      .filter(Boolean) as Album[];
 
     // Log
-    albums.forEach((a, i) => {
-      console.log(`${i + 1}: ${chalk.green(a)}`);
+    albums.forEach((a) => {
+      console.log(`#${a.pos} - ${chalk.green(a.title)}`);
     });
 
     if (albums.length !== 40)

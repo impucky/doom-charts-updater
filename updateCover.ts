@@ -9,14 +9,10 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-async function getCoverUrl(
-  id: string,
-  token: string,
-  albumId: string
-): Promise<null> {
+async function getCoverUrl(token: string, albumId: string): Promise<null> {
   const headers = new Headers({
-    Authorization: `Bearer ${token}`,
-    Accept: "application/json",
+    "Authorization": `Bearer ${token}`,
+    "Accept": "application/json",
     "Content-Type": "application/json",
   });
 
@@ -68,14 +64,14 @@ export default async function updateCover(
   token: string,
   albumId: string
 ): Promise<null> {
-  const imgUrl = await getCoverUrl(id, token, albumId);
+  const imgUrl = await getCoverUrl(token, albumId);
   if (!imgUrl) return null;
   const img = await downloadCover(imgUrl);
   if (!imgUrl) return null;
 
   const headers = new Headers({
-    Authorization: `Bearer ${token}`,
-    Accept: "application/json",
+    "Authorization": `Bearer ${token}`,
+    "Accept": "application/json",
     "Content-Type": "application/json",
   });
 
